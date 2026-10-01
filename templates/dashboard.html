@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - AI Meeting Portal{% endblock %}
+{% block page_title %}Company Dashboard{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+  <h2 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 0.3rem;">Welcome back, <span class="user-name-display">Employee</span> 👋</h2>
+  <p style="color: var(--text-muted); font-size: 0.95rem;">Here is your meeting coordination and AI action extraction overview.</p>
+</div>
+
+<!-- Metric Cards (Section 27 Requirements) -->
+<div class="metrics-grid">
+  <div class="metric-card cyan">
+    <div class="metric-value" id="stat-upcoming-meetings">0</div>
+    <div class="metric-label">Upcoming Meetings</div>
+  </div>
+  <div class="metric-card warning">
+    <div class="metric-value" id="stat-pending-actions">0</div>
+    <div class="metric-label">Pending Actions</div>
+  </div>
+  <div class="metric-card success">
+    <div class="metric-value" id="stat-completed-actions">0</div>
+    <div class="metric-label">Completed Actions</div>
+  </div>
+  <div class="metric-card danger">
+    <div class="metric-value" id="stat-overdue-actions">0</div>
+    <div class="metric-label">Overdue Actions</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" id="stat-unresolved-questions">0</div>
+    <div class="metric-label">Unresolved Questions</div>
+  </div>
+  <div class="metric-card cyan">
+    <div class="metric-value" id="stat-meetings-this-week">0</div>
+    <div class="metric-label">Meetings This Week</div>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+  <!-- Upcoming Meetings -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📅 Upcoming Meetings</div>
+      <a href="/meetings/create/" class="btn btn-primary" style="padding:0.4rem 0.8rem;font-size:0.8rem;">+ New Meeting</a>
+    </div>
+    <table class="custom-table" id="dashboard-meetings-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Date & Time</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Loading upcoming meetings...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pending Action Items -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🎯 Action Items Assigned to Me</div>
+      <a href="/actions/my/" style="color:var(--primary);font-size:0.85rem;text-decoration:none;font-weight:600;">View All →</a>
+    </div>
+    <div id="dashboard-my-actions-list" style="display:flex;flex-direction:column;gap:0.75rem;">
+      <div style="text-align:center;color:var(--text-muted);">Loading action items...</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const [meetings, actions, questions] = await Promise.all([
+        api.get('/meetings/'),
+        api.get('/actions/'),
+        api.get('/actions/questions/')
+      ]);
+
+      // Calculate Stats
+      const upcoming = meetings.filter(m => m.status !== 'Completed' && m.status !== 'Cancelled');
+      const pendingActions = actions.filter(a => a.status === 'Pending' || a.status === 'In Progress');
+      const completedActions = actions.filter(a => a.status === 'Completed');
+      const overdueActions = actions.filter(a => a.status === 'Overdue');
+      const unresolvedQ = questions.filter(q => q.status === 'Unresolved');
+
+      document.getElementById('stat-upcoming-meetings').textContent = upcoming.length;
+      document.getElementById('stat-pending-actions').textContent = pendingActions.length;
+      document.getElementById('stat-completed-actions').textContent = completedActions.length;
+      document.getElementById('stat-overdue-actions').textContent = overdueActions.length;
+      document.getElementById('stat-unresolved-questions').textContent = unresolvedQ.length;
+      document.getElementById('stat-meetings-this-week').textContent = meetings.length;
+
+      // Render Meetings Table
+      const tbody = document.querySelector('#dashboard-meetings-table tbody');
+      if (meetings.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:1.5rem;">No meetings scheduled yet. <a href="/meetings/create/" style="color:var(--primary);">Create your first meeting!</a></td></tr>`;
+      } else {
+        tbody.innerHTML = meetings.slice(0, 5).map(m => `
+          <tr>
+            <td style="font-weight:600;"><a href="/meetings/${m.id}/" style="color:#fff;text-decoration:none;">${m.title}</a></td>
+            <td>${m.date} <br><span style="font-size:0.75rem;color:var(--text-muted);">${m.start_time.substring(0,5)} - ${m.end_time.substring(0,5)}</span></td>
+            <td><span class="badge" style="background:rgba(255,255,255,0.05);color:var(--text-muted);">${m.meeting_type}</span></td>
+            <td><span class="badge badge-scheduled">${m.status}</span></td>
+            <td>
+              <a href="/meetings/${m.id}/" class="btn btn-secondary" style="padding:0.25rem 0.6rem;font-size:0.75rem;">View</a>
+              <a href="/meetings/${m.id}/ai-analysis/" class="btn btn-primary" style="padding:0.25rem 0.6rem;font-size:0.75rem;">AI Report</a>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      // Render My Actions List
+      const actionsContainer = document.getElementById('dashboard-my-actions-list');
+      const currentUser = await authService.getCurrentUser();
+      const myTasks = actions.filter(a => a.owner_user && currentUser && a.owner_user.id === currentUser.id);
+
+      if (myTasks.length === 0) {
+        actionsContainer.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:1rem;">No pending tasks assigned to you.</div>`;
+      } else {
+        actionsContainer.innerHTML = myTasks.slice(0, 5).map(a => `
+          <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:0.85rem;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:600;font-size:0.9rem;">${a.task}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Deadline: ${a.deadline} • Priority: ${a.priority}</div>
+            </div>
+            <span class="badge badge-${a.status.toLowerCase().replace(' ', '')}">${a.status}</span>
+          </div>
+        `).join('');
+      }
+
+    } catch (e) {
+      console.error('Dashboard load error:', e);
+    }
+  });
+</script>
+{% endblock %}

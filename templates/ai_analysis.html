@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% block title %}AI Meeting Analysis - AI Meeting Portal{% endblock %}
+{% block page_title %}Generative AI Meeting Decision & Action Report{% endblock %}
+
+{% block content %}
+<div id="ai-loading-indicator" style="display:none;text-align:center;padding:3rem;background:var(--bg-card);border-radius:12px;border:1px solid var(--border-color);margin-bottom:2rem;">
+  <div style="font-size:2rem;margin-bottom:1rem;">🤖 ✨</div>
+  <h3>Analyzing Meeting Transcript with AI...</h3>
+  <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;">Extracting explicit decisions, action owners, deadlines, grounding evidence, and dependencies...</p>
+</div>
+
+<div id="analysis-report-container">
+  <div style="text-align:center;color:var(--text-muted);padding:3rem;">Loading AI Analysis...</div>
+</div>
+
+<!-- Transcript Evidence Modal -->
+<div id="evidence-modal" class="modal-overlay">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h3 style="font-size:1.1rem;font-weight:700;">🔍 Transcript Grounding Evidence</h3>
+      <button onclick="closeEvidenceModal()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
+    </div>
+    <div id="evidence-modal-body" style="background:var(--bg-dark);padding:1rem;border-radius:8px;font-style:italic;color:var(--text-main);line-height:1.6;border-left:4px solid var(--primary);">
+      <!-- Evidence quote -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/ai_extractor.js' %}"></script>
+<script>
+  const meetingId = {{ meeting_id }};
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadReport();
+  });
+
+  async function loadReport() {
+    const container = document.getElementById('analysis-report-container');
+    try {
+      const report = await aiExtractor.loadMeetingReport(meetingId);
+
+      if (!report.transcript_available) {
+        container.innerHTML = `
+          <div class="card" style="text-align:center;padding:3rem;">
+            <h3 style="margin-bottom:1rem;">No Transcript Uploaded Yet</h3>
+            <p style="color:var(--text-muted);margin-bottom:1.5rem;">Upload a meeting transcript to extract decisions, action items, deadlines, and dependencies with Generative AI.</p>
+            <a href="/transcripts/upload/?meeting_id=${meetingId}" class="btn btn-primary">📄 Upload Transcript Now</a>
+          </div>
+        `;
+        return;
+      }
+
+      let html = `
+        <div class="card-header" style="margin-bottom:1.5rem;">
+          <div>
+            <h2 style="font-size:1.5rem;font-weight:800;">${report.title}</h2>
+            <div style="font-size:0.85rem;color:var(--text-muted);margin-top:2px;">Organized by ${report.organizer} on ${report.date}</div>
+          </div>
+          <a href="/transcripts/upload/?meeting_id=${meetingId}" class="btn btn-secondary">Re-upload Transcript</a>
+        </div>
+
+        <!-- Decisions Section -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">✅ Confirmed Decisions</div>
+          </div>
+          ${report.decisions.length === 0 ? `<p style="color:var(--text-muted);">No explicit decisions confirmed in transcript.</p>` : `
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+              ${report.decisions.map(d => `
+                <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:1rem;display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <div style="font-weight:700;font-size:1rem;color:#fff;">${d.decision}</div>
+                    <div style="font-size:0.8rem;color:var(--success);margin-top:4px;">Confidence: ${(d.confidence*100).toFixed(0)}%</div>
+                  </div>
+                  <button onclick="showEvidence('${escapeQuotes(d.evidence)}')" class="btn btn-secondary" style="font-size:0.75rem;padding:0.3rem 0.6rem;">🔍 View Evidence</button>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+
+        <!-- Action Items Table (Action Register) -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🎯 Action Items Register</div>
+          </div>
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Action Task</th>
+                <th>Owner</th>
+                <th>Deadline</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${report.action_items.map(a => `
+                <tr>
+                  <td style="font-weight:600;">${a.task}</td>
+                  <td><strong>${a.owner_user ? (a.owner_user.full_name || a.owner_user.username) : a.owner_name}</strong></td>
+                  <td>${a.deadline}</td>
+                  <td><span class="badge" style="background:rgba(255,255,255,0.05);color:var(--accent-cyan);">${a.priority}</span></td>
+                  <td>
+                    <select onchange="updateActionStatus(${a.id}, this.value)" class="form-control" style="padding:0.25rem;font-size:0.8rem;width:auto;">
+                      <option value="Pending" ${a.status==='Pending'?'selected':''}>Pending</option>
+                      <option value="In Progress" ${a.status==='In Progress'?'selected':''}>In Progress</option>
+                      <option value="Completed" ${a.status==='Completed'?'selected':''}>Completed</option>
+                      <option value="Overdue" ${a.status==='Overdue'?'selected':''}>Overdue</option>
+                    </select>
+                  </td>
+                  <td>
+                    <button onclick="showEvidence('${escapeQuotes(a.evidence)}')" class="btn btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Evidence</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+          <!-- Unresolved Questions -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">❓ Unresolved Questions</div>
+            </div>
+            ${report.unresolved_questions.length === 0 ? `<p style="color:var(--text-muted);">No unresolved questions.</p>` : `
+              <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                ${report.unresolved_questions.map(q => `
+                  <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:0.85rem;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:0.9rem;font-weight:500;">${q.question}</span>
+                    <button onclick="resolveQuestion(${q.id})" class="btn btn-secondary" style="font-size:0.75rem;padding:0.25rem 0.5rem;">${q.status==='Resolved'?'Resolved':'Resolve'}</button>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+
+          <!-- Dependencies -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🔗 Project Dependencies</div>
+            </div>
+            ${report.dependencies.length === 0 ? `<p style="color:var(--text-muted);">No explicit dependencies identified.</p>` : `
+              <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                ${report.dependencies.map(dep => `
+                  <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:0.85rem;font-size:0.9rem;color:var(--accent-cyan);">
+                    🔗 ${dep.description}
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- Raw Transcript Expander -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📜 Original Meeting Transcript</div>
+          </div>
+          <pre style="background:var(--bg-dark);padding:1rem;border-radius:8px;color:var(--text-muted);font-family:monospace;font-size:0.85rem;white-space:pre-wrap;">${report.raw_transcript}</pre>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--danger);">Error loading AI report: ${e.message}</p>`;
+    }
+  }
+
+  function escapeQuotes(str) {
+    return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  }
+
+  function showEvidence(text) {
+    document.getElementById('evidence-modal-body').textContent = text || 'No explicit grounding quote specified.';
+    document.getElementById('evidence-modal').classList.add('active');
+  }
+
+  function closeEvidenceModal() {
+    document.getElementById('evidence-modal').classList.remove('active');
+  }
+
+  async function updateActionStatus(actionId, statusVal) {
+    await aiExtractor.updateActionStatus(actionId, statusVal);
+  }
+
+  async function resolveQuestion(qId) {
+    await aiExtractor.resolveQuestion(qId, 'Resolved');
+    loadReport();
+  }
+</script>
+{% endblock %}

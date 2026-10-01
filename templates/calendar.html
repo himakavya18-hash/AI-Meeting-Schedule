@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Meeting Calendar - AI Meeting Portal{% endblock %}
+{% block page_title %}Company Meeting Calendar{% endblock %}
+
+{% block content %}
+<div class="card" id="calendar-container-wrapper">
+  <!-- Rendered by calendar.js -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/calendar.js' %}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const cal = new MeetingCalendar('calendar-container-wrapper');
+    cal.init();
+  });
+</script>
+{% endblock %}

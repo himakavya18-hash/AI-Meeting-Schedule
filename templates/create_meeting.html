@@ -1,0 +1,412 @@
+{% extends 'base.html' %}
+{% block title %}Create & Schedule Meeting - AI Meeting Portal{% endblock %}
+{% block page_title %}Schedule New Company Meeting{% endblock %}
+
+{% block content %}
+<style>
+  .participant-card {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .participant-card:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.05);
+  }
+  .participant-card.selected {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.12);
+  }
+  .participant-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .dept-pill {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .dept-pill.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+</style>
+
+<div style="display: grid; grid-template-columns: 3fr 2fr; gap: 1.5rem;">
+  <!-- Form Container -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📝 Meeting Information</div>
+    </div>
+    <form id="create-meeting-form">
+      <div class="form-group">
+        <label class="form-label">Meeting Title *</label>
+        <input type="text" id="m-title" class="form-control" placeholder="e.g. Project Release & Sprint Planning" required>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Meeting Type *</label>
+          <select id="m-type" class="form-control">
+            <option value="Team Meeting">Team Meeting</option>
+            <option value="Client Meeting">Client Meeting</option>
+            <option value="Project Meeting">Project Meeting</option>
+            <option value="Review Meeting">Review Meeting</option>
+            <option value="Planning Meeting">Planning Meeting</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority *</label>
+          <select id="m-priority" class="form-control">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" id="m-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Start Time *</label>
+          <input type="time" id="m-start" class="form-control" value="10:00" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Time *</label>
+          <input type="time" id="m-end" class="form-control" value="11:00" required>
+        </div>
+      </div>
+
+      <!-- Select Participants Enhanced Section -->
+      <div class="form-group" style="margin-bottom: 1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+          <label class="form-label" style="margin-bottom:0;">
+            Select Required Participants *
+          </label>
+          <span id="selected-count-badge" style="font-size:0.8rem; background:rgba(99,102,241,0.2); color:var(--accent-cyan); border:1px solid rgba(99,102,241,0.4); padding:0.15rem 0.5rem; border-radius:9999px; font-weight:600;">
+            0 selected
+          </span>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div style="display:flex; gap:0.5rem; margin-bottom:0.6rem;">
+          <input type="text" id="participant-search" class="form-control" placeholder="🔍 Search participant by name, role or email..." style="font-size:0.85rem; padding:0.5rem 0.75rem;">
+          <button type="button" onclick="selectAllParticipants(true)" class="btn btn-secondary" style="padding:0.4rem 0.6rem; font-size:0.75rem; white-space:nowrap;">Select All</button>
+          <button type="button" onclick="selectAllParticipants(false)" class="btn btn-secondary" style="padding:0.4rem 0.6rem; font-size:0.75rem; white-space:nowrap;">Clear</button>
+        </div>
+
+        <!-- Department Filter Pills -->
+        <div id="dept-filter-bar" style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-bottom:0.75rem;">
+          <button type="button" class="dept-pill active" onclick="filterByDept('All')">All</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('Engineering')">Engineering</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('QA')">QA</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('Product')">Product</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('Design')">Design</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('HR')">HR</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('Finance')">Finance</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('Marketing')">Marketing</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('Operations')">Operations</button>
+          <button type="button" class="dept-pill" onclick="filterByDept('DevOps')">DevOps</button>
+        </div>
+
+        <!-- Participants List Container -->
+        <div id="participant-container" style="max-height:240px; overflow-y:auto; display:flex; flex-direction:column; gap:0.45rem; padding-right:4px;">
+          <div style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem;">Loading employee directory...</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Agenda</label>
+        <textarea id="m-agenda" class="form-control" placeholder="Key topics to discuss..." rows="3"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top:1rem;">
+        <button type="button" onclick="checkAvailability()" class="btn btn-secondary">🔍 Check Availability</button>
+        <button type="submit" class="btn btn-primary">📅 Confirm & Schedule Meeting</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Availability & Alternative Suggestions Panel -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🕒 Participant Availability Status</div>
+    </div>
+    <div id="availability-result-panel">
+      <div style="text-align:center; padding:2rem 1rem; color:var(--text-muted);">
+        <div style="font-size:2rem; margin-bottom:0.5rem;">👥</div>
+        <p style="font-size:0.9rem;">Pick participants from the list, select date and time, then click <strong>Check Availability</strong>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let allUsers = [];
+  let selectedUserIds = new Set();
+  let currentDeptFilter = 'All';
+  let searchQuery = '';
+  let currentUser = null;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Set default date to tomorrow
+    const today = new Date();
+    today.setDate(today.getDate() + 1);
+    document.getElementById('m-date').value = today.toISOString().split('T')[0];
+
+    // Fetch Current User & All Users
+    try {
+      currentUser = await authService.getCurrentUser();
+      allUsers = await api.get('/accounts/users/');
+
+      // Automatically select organizer
+      if (currentUser) {
+        selectedUserIds.add(currentUser.id);
+      }
+
+      renderParticipantsList();
+    } catch (e) {
+      console.error('Failed to load users:', e);
+      document.getElementById('participant-container').innerHTML = `<div style="color:var(--danger);font-size:0.85rem;">Failed to load user directory: ${e.message}</div>`;
+    }
+
+    // Search filter listener
+    document.getElementById('participant-search').addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      renderParticipantsList();
+    });
+
+    // Form submission listener
+    document.getElementById('create-meeting-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const participantIds = Array.from(selectedUserIds);
+
+      if (participantIds.length === 0) {
+        alert('Please select at least one participant for the meeting.');
+        return;
+      }
+
+      try {
+        const res = await api.post('/meetings/', {
+          title: document.getElementById('m-title').value,
+          meeting_type: document.getElementById('m-type').value,
+          priority: document.getElementById('m-priority').value,
+          date: document.getElementById('m-date').value,
+          start_time: document.getElementById('m-start').value,
+          end_time: document.getElementById('m-end').value,
+          agenda: document.getElementById('m-agenda').value,
+          participant_ids: participantIds
+        });
+
+        alert('Meeting scheduled successfully! Email invitations dispatched.');
+        window.location.href = `/meetings/${res.meeting.id}/`;
+      } catch (err) {
+        alert('Error scheduling meeting: ' + err.message);
+      }
+    });
+  });
+
+  function renderParticipantsList() {
+    const container = document.getElementById('participant-container');
+    const filtered = allUsers.filter(u => {
+      // Dept filter
+      if (currentDeptFilter !== 'All' && u.department !== currentDeptFilter) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery) {
+        const fullName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).toLowerCase();
+        const username = (u.username || '').toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        const role = (u.job_role || '').toLowerCase();
+        const dept = (u.department || '').toLowerCase();
+        return fullName.includes(searchQuery) || username.includes(searchQuery) ||
+               email.includes(searchQuery) || role.includes(searchQuery) || dept.includes(searchQuery);
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:1rem;">No participants found matching criteria.</div>`;
+      updateSelectedBadge();
+      return;
+    }
+
+    container.innerHTML = filtered.map(u => {
+      const isSelected = selectedUserIds.has(u.id);
+      const isSelf = currentUser && u.id === currentUser.id;
+      const initial = (u.first_name ? u.first_name[0] : u.username[0]).toUpperCase();
+      const displayName = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username;
+
+      return `
+        <div class="participant-card ${isSelected ? 'selected' : ''}" onclick="toggleParticipant(${u.id})">
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div class="participant-avatar">${initial}</div>
+            <div>
+              <div style="font-weight:600; font-size:0.88rem; color:#fff;">
+                ${displayName} ${isSelf ? '<span style="font-size:0.7rem; color:var(--accent-cyan); font-weight:normal;">(You / Organizer)</span>' : ''}
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">
+                ${u.job_role || 'Team Member'} • <span style="color:#94a3b8;">${u.department || 'General'}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <input type="checkbox" style="transform:scale(1.2); cursor:pointer;" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleParticipant(${u.id})">
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    updateSelectedBadge();
+  }
+
+  function toggleParticipant(userId) {
+    if (selectedUserIds.has(userId)) {
+      selectedUserIds.delete(userId);
+    } else {
+      selectedUserIds.add(userId);
+    }
+    renderParticipantsList();
+  }
+
+  function selectAllParticipants(select) {
+    if (select) {
+      allUsers.forEach(u => selectedUserIds.add(u.id));
+    } else {
+      selectedUserIds.clear();
+      if (currentUser) selectedUserIds.add(currentUser.id); // keep self
+    }
+    renderParticipantsList();
+  }
+
+  function filterByDept(dept) {
+    currentDeptFilter = dept;
+    document.querySelectorAll('.dept-pill').forEach(btn => {
+      if (btn.innerText === dept) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    renderParticipantsList();
+  }
+
+  function updateSelectedBadge() {
+    const badge = document.getElementById('selected-count-badge');
+    const count = selectedUserIds.size;
+    badge.innerText = `${count} participant${count === 1 ? '' : 's'} selected`;
+  }
+
+  async function checkAvailability() {
+    const participantIds = Array.from(selectedUserIds);
+    const dateVal = document.getElementById('m-date').value;
+    const startVal = document.getElementById('m-start').value;
+    const endVal = document.getElementById('m-end').value;
+
+    if (!participantIds.length) {
+      alert('Please select at least one participant from the list.');
+      return;
+    }
+    if (!dateVal || !startVal || !endVal) {
+      alert('Please select date, start time, and end time.');
+      return;
+    }
+
+    const panel = document.getElementById('availability-result-panel');
+    panel.innerHTML = `<p style="color:var(--text-muted); text-align:center; padding:1rem;">Checking calendar availability for ${participantIds.length} participant(s)...</p>`;
+
+    try {
+      const res = await api.post('/meetings/check-availability/', {
+        participant_ids: participantIds,
+        date: dateVal,
+        start_time: startVal,
+        end_time: endVal
+      });
+
+      let html = '';
+      if (res.all_available) {
+        html += `<div style="background:rgba(16,185,129,0.15);border:1px solid var(--success);color:var(--success);padding:0.9rem;border-radius:8px;font-weight:700;margin-bottom:1rem;">
+          ✅ All ${res.total_count} selected participant(s) are available!
+        </div>`;
+      } else {
+        html += `<div style="background:rgba(245,158,11,0.15);border:1px solid var(--warning);color:var(--warning);padding:0.9rem;border-radius:8px;font-weight:700;margin-bottom:1rem;">
+          ⚠️ ${res.unavailable_count} of ${res.total_count} participant(s) are unavailable at this slot.
+        </div>`;
+      }
+
+      html += `<table class="custom-table" style="margin-bottom:1rem;">
+        <thead><tr><th>Employee</th><th>Status</th><th>Reason</th></tr></thead>
+        <tbody>
+      `;
+
+      res.statuses.forEach(s => {
+        const badgeClass = s.is_available ? 'badge-completed' : 'badge-overdue';
+        html += `
+          <tr>
+            <td><strong>${s.name}</strong></td>
+            <td><span class="badge ${badgeClass}">${s.is_available ? 'Available' : 'Busy / Off'}</span></td>
+            <td style="font-size:0.75rem;color:var(--text-muted);">${s.reason}</td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+
+      // Alternative Slots Panel
+      if (res.alternative_slots && res.alternative_slots.length > 0) {
+        html += `<h4 style="margin-bottom:0.5rem;font-size:0.9rem;color:var(--accent-cyan);">💡 Suggested Alternative Time Slots:</h4>`;
+        res.alternative_slots.forEach(slot => {
+          html += `
+            <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.45rem;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <strong style="color:#fff;font-size:0.85rem;">${slot.start_time} - ${slot.end_time}</strong>
+                <div style="font-size:0.75rem;color:var(--text-muted);">${slot.available_count} of ${slot.total_count} available</div>
+              </div>
+              <button type="button" onclick="applyAlternativeSlot('${slot.start_time}', '${slot.end_time}')" class="btn btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Use Slot</button>
+            </div>
+          `;
+        });
+      }
+
+      panel.innerHTML = html;
+    } catch (e) {
+      panel.innerHTML = `<p style="color:var(--danger);padding:1rem;">Error checking availability: ${e.message}</p>`;
+    }
+  }
+
+  function applyAlternativeSlot(start, end) {
+    document.getElementById('m-start').value = start;
+    document.getElementById('m-end').value = end;
+    checkAvailability();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Meeting Details - AI Meeting Portal{% endblock %}
+{% block page_title %}Meeting Overview & Coordination{% endblock %}
+
+{% block content %}
+<div id="meeting-detail-card" class="card">
+  <div style="text-align:center;color:var(--text-muted);padding:2rem;">Loading meeting details...</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const meetingId = {{ meeting_id }};
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const meeting = await api.get(`/meetings/${meetingId}/`);
+      const currentUser = await authService.getCurrentUser();
+      
+      const isOrganizer = currentUser && currentUser.id === meeting.organizer.id;
+      const userPart = meeting.meeting_participants.find(p => currentUser && p.user.id === currentUser.id);
+
+      let html = `
+        <div class="card-header">
+          <div>
+            <span class="badge badge-scheduled" style="margin-bottom:0.5rem;">${meeting.status}</span>
+            <h2 style="font-size:1.5rem;font-weight:800;">${meeting.title}</h2>
+          </div>
+          <div style="display:flex;gap:0.75rem;">
+            <a href="/transcripts/upload/?meeting_id=${meeting.id}" class="btn btn-secondary">📄 Upload Transcript</a>
+            <a href="/meetings/${meeting.id}/ai-analysis/" class="btn btn-primary">⚡ View AI Analysis Report</a>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:2rem;">
+          <div>
+            <div style="margin-bottom:1.5rem;">
+              <h4 style="color:var(--text-muted);font-size:0.85rem;text-transform:uppercase;margin-bottom:0.4rem;">Description & Agenda</h4>
+              <p style="font-size:0.95rem;line-height:1.6;">${meeting.description || meeting.agenda || 'No detailed agenda provided.'}</p>
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+              <h4 style="color:var(--text-muted);font-size:0.85rem;text-transform:uppercase;margin-bottom:0.4rem;">Meeting Metadata</h4>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;background:var(--bg-dark);padding:1rem;border-radius:8px;">
+                <div><strong>Organizer:</strong> ${meeting.organizer.full_name || meeting.organizer.username}</div>
+                <div><strong>Type:</strong> ${meeting.meeting_type}</div>
+                <div><strong>Date:</strong> ${meeting.date}</div>
+                <div><strong>Time:</strong> ${meeting.start_time.substring(0,5)} - ${meeting.end_time.substring(0,5)} (${meeting.duration_minutes} mins)</div>
+                <div><strong>Priority:</strong> ${meeting.priority}</div>
+              </div>
+            </div>
+
+            <!-- Participant RSVP Buttons -->
+            ${userPart ? `
+              <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:1.25rem;margin-bottom:1.5rem;">
+                <h4 style="margin-bottom:0.75rem;">Your Response Status: <span class="badge badge-pending">${userPart.response_status}</span></h4>
+                <div style="display:flex;gap:0.75rem;">
+                  <button onclick="respondToMeeting('Accepted')" class="btn btn-success">Accept</button>
+                  <button onclick="respondToMeeting('Maybe')" class="btn btn-secondary">Maybe</button>
+                  <button onclick="respondToMeeting('Declined')" class="btn btn-danger">Decline</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Participants List -->
+          <div>
+            <h4 style="color:var(--text-muted);font-size:0.85rem;text-transform:uppercase;margin-bottom:0.75rem;">Invited Participants (${meeting.meeting_participants.length})</h4>
+            <div style="display:flex;flex-direction:column;gap:0.5rem;">
+              ${meeting.meeting_participants.map(p => `
+                <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:8px;padding:0.75rem;display:flex;align-items:center;justify-content:space-between;">
+                  <div>
+                    <div style="font-weight:600;font-size:0.9rem;">${p.user.full_name || p.user.username}</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);">${p.user.job_role}</div>
+                  </div>
+                  <span class="badge badge-${p.response_status === 'Accepted' ? 'completed' : p.response_status === 'Declined' ? 'overdue' : 'pending'}">${p.response_status}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('meeting-detail-card').innerHTML = html;
+    } catch (e) {
+      document.getElementById('meeting-detail-card').innerHTML = `<p style="color:var(--danger);">Error loading meeting details: ${e.message}</p>`;
+    }
+  });
+
+  async function respondToMeeting(statusVal) {
+    try {
+      await api.post(`/meetings/${meetingId}/respond/`, { response_status: statusVal });
+      alert(`Response recorded: ${statusVal}`);
+      window.location.reload();
+    } catch (e) {
+      alert('Error updating response: ' + e.message);
+    }
+  }
+</script>
+{% endblock %}

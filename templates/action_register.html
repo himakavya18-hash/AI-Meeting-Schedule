@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Action Register - AI Meeting Portal{% endblock %}
+{% block page_title %}Company Action Items Register{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📋 Action Register</div>
+    <div style="display:flex;gap:0.75rem;">
+      <select id="filter-status" class="form-control" style="width:auto;padding:0.4rem;">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+      <select id="filter-priority" class="form-control" style="width:auto;padding:0.4rem;">
+        <option value="">All Priorities</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+    </div>
+  </div>
+
+  <table class="custom-table" id="action-register-table">
+    <thead>
+      <tr>
+        <th>Action Task</th>
+        <th>Owner</th>
+        <th>Meeting</th>
+        <th>Deadline</th>
+        <th>Priority</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Loading action register...</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadActions();
+
+    document.getElementById('filter-status').addEventListener('change', loadActions);
+    document.getElementById('filter-priority').addEventListener('change', loadActions);
+  });
+
+  async function loadActions() {
+    const statusVal = document.getElementById('filter-status').value;
+    const priorityVal = document.getElementById('filter-priority').value;
+
+    let endpoint = '/actions/?';
+    if (statusVal) endpoint += `status=${statusVal}&`;
+    if (priorityVal) endpoint += `priority=${priorityVal}&`;
+
+    try {
+      const actions = await api.get(endpoint);
+      const tbody = document.querySelector('#action-register-table tbody');
+
+      if (actions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">No action items found matching filters.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = actions.map(a => `
+        <tr>
+          <td style="font-weight:600;">${a.task}</td>
+          <td><strong>${a.owner_user ? (a.owner_user.full_name || a.owner_user.username) : a.owner_name}</strong></td>
+          <td><a href="/meetings/${a.meeting}/" style="color:var(--primary);">${a.meeting_title || 'Meeting #'+a.meeting}</a></td>
+          <td>${a.deadline}</td>
+          <td><span class="badge" style="background:rgba(255,255,255,0.05);color:var(--accent-cyan);">${a.priority}</span></td>
+          <td>
+            <select onchange="updateStatus(${a.id}, this.value)" class="form-control" style="padding:0.25rem;font-size:0.8rem;width:auto;">
+              <option value="Pending" ${a.status==='Pending'?'selected':''}>Pending</option>
+              <option value="In Progress" ${a.status==='In Progress'?'selected':''}>In Progress</option>
+              <option value="Completed" ${a.status==='Completed'?'selected':''}>Completed</option>
+              <option value="Overdue" ${a.status==='Overdue'?'selected':''}>Overdue</option>
+            </select>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function updateStatus(id, val) {
+    await api.put(`/actions/${id}/`, { status: val });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Settings - AI Meeting Portal{% endblock %}
+{% block page_title %}Application & GenAI Configuration{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:700px;margin:0 auto;">
+  <div class="card-header">
+    <div class="card-title">⚙️ Portal & LLM Engine Settings</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:1.25rem;">
+    <div class="form-group">
+      <label class="form-label">Configured LLM Provider</label>
+      <input type="text" class="form-control" value="Google Gemini API (gemini-2.5-flash) / Heuristic Offline Fallback" disabled>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Firebase Authentication Mode</label>
+      <input type="text" class="form-control" value="Google & Apple Sign-In Token Verification Enabled" disabled>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email Notification Backend</label>
+      <input type="text" class="form-control" value="Django Console SMTP Email Backend" disabled>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,327 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login & Registration - AI Meeting Decision Portal</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .auth-tab-btn {
+      flex: 1;
+      padding: 0.8rem 1rem;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .auth-tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .auth-alert {
+      display: none;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .auth-alert.error {
+      display: block !important;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+    }
+    .auth-alert.success {
+      display: block !important;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--success);
+      color: #6ee7b7;
+    }
+  </style>
+</head>
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg, #090d16 0%, #0f172a 100%);padding:2rem 1rem;">
+  {% csrf_token %}
+  <div style="width:100%;max-width:520px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;padding:2.2rem;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8);">
+    
+    <!-- Branding Header -->
+    <div style="text-align:center;margin-bottom:1.5rem;">
+      <div style="width:52px;height:52px;background:linear-gradient(135deg, var(--primary), var(--accent-cyan));border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:800;color:#fff;margin-bottom:0.75rem;box-shadow:0 8px 16px rgba(99,102,241,0.3);">AI</div>
+      <h2 style="font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;">Company Meeting Portal</h2>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem;">AI Meeting Decision & Action Item Extractor</p>
+    </div>
+
+    <!-- Switcher Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--border-color);margin-bottom:1.5rem;border-radius:8px 8px 0 0;overflow:hidden;">
+      <button type="button" id="tab-btn-signin" class="auth-tab-btn active" onclick="switchTab('signin')">🔑 Sign In</button>
+      <button type="button" id="tab-btn-register" class="auth-tab-btn" onclick="switchTab('register')">✨ Create Account</button>
+    </div>
+
+    <!-- Sign In Form -->
+    <div id="signin-section">
+      <div id="signin-alert" class="auth-alert"></div>
+      <form id="signin-form" onsubmit="handleEmailPasswordLogin(event)">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label class="form-label">Email or Username</label>
+          <input type="text" id="login-identifier" class="form-control" placeholder="e.g. rahul@company.com or Rahul" required autocomplete="username">
+        </div>
+        <div class="form-group" style="margin-bottom:1.25rem;">
+          <label class="form-label">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
+        </div>
+        <button type="submit" id="btn-signin-submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:0.75rem;font-size:0.95rem;">
+          Sign In
+        </button>
+      </form>
+    </div>
+
+    <!-- Create Account Form -->
+    <div id="register-section" style="display:none;">
+      <div id="register-alert" class="auth-alert"></div>
+      <form id="register-form" onsubmit="handleRegistration(event)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+          <div class="form-group">
+            <label class="form-label">First Name *</label>
+            <input type="text" id="reg-firstname" class="form-control" placeholder="First Name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input type="text" id="reg-lastname" class="form-control" placeholder="Last Name">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <label class="form-label">Work Email Address *</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="name@company.com" required autocomplete="email">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+          <div class="form-group">
+            <label class="form-label">Department *</label>
+            <select id="reg-department" class="form-control">
+              <option value="Engineering">Engineering</option>
+              <option value="QA">QA & Testing</option>
+              <option value="Product">Product</option>
+              <option value="Design">Design / UX</option>
+              <option value="HR">Human Resources</option>
+              <option value="Finance">Finance</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Operations">Operations</option>
+              <option value="DevOps">DevOps</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Job Role</label>
+            <input type="text" id="reg-role" class="form-control" placeholder="e.g. Software Engineer">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;">
+          <div class="form-group">
+            <label class="form-label">Password *</label>
+            <input type="password" id="reg-password" class="form-control" placeholder="Min 6 characters" required autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password *</label>
+            <input type="password" id="reg-password2" class="form-control" placeholder="Confirm password" required autocomplete="new-password">
+          </div>
+        </div>
+
+        <button type="submit" id="btn-register-submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:0.75rem;font-size:0.95rem;">
+          ✨ Create Account & Enter
+        </button>
+      </form>
+    </div>
+
+    <!-- SSO & Demo Login Section -->
+    <div style="display:flex;align-items:center;gap:1rem;margin:1.75rem 0 1.25rem 0;">
+      <div style="flex:1;height:1px;background:var(--border-color);"></div>
+      <span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Or Quick Demo / SSO</span>
+      <div style="flex:1;height:1px;background:var(--border-color);"></div>
+    </div>
+
+    <!-- Firebase SSO Buttons -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1.25rem;">
+      <button type="button" onclick="handleGoogleLogin()" class="btn btn-secondary" style="justify-content:center;padding:0.6rem;font-size:0.8rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:4px;"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.6 14.8c-.3-.8-.4-1.8-.4-2.8s.1-2 .4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/></svg>
+        Google Auth
+      </button>
+
+      <button type="button" onclick="handleAppleLogin()" class="btn btn-secondary" style="justify-content:center;padding:0.6rem;font-size:0.8rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px;"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.31c.67-.82 1.13-1.96.99-3.11-.98.04-2.19.66-2.88 1.47-.62.72-1.16 1.88-1.01 3.01 1.1.09 2.23-.55 2.9-1.37z"/></svg>
+        Apple ID
+      </button>
+    </div>
+
+    <!-- Quick 1-Click Employee Login Selector -->
+    <div style="background:var(--bg-dark);border:1px solid var(--border-color);border-radius:10px;padding:0.9rem;">
+      <label style="font-size:0.75rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:0.4rem;text-transform:uppercase;">⚡ Quick Demo Login As Team Member:</label>
+      <div style="display:flex;gap:0.5rem;">
+        <select id="employeeSelect" class="form-control" style="background:#0f172a;color:#fff;border:1px solid var(--border-color);border-radius:6px;padding:0.5rem;font-size:0.85rem;flex:1;">
+          <option value="Rahul" data-role="Senior Manager">👨‍💼 Rahul — Senior Manager</option>
+          <option value="Akhila" data-role="Full Stack Developer">👩‍💻 Akhila — Full Stack Dev</option>
+          <option value="Bala" data-role="DevOps Engineer">👨‍💻 Bala — DevOps Engineer</option>
+          <option value="Kavya" data-role="Test Automation Engineer">👩‍💻 Kavya — QA Automation</option>
+          <option value="Madhu" data-role="Product Manager">👨‍💼 Madhu — Product Manager</option>
+          <option value="Sarasu" data-role="HR Manager">👩‍💼 Sarasu — HR Manager</option>
+          <option value="Rajitha" data-role="Finance Analyst">👩‍💼 Rajitha — Finance Analyst</option>
+          <option value="Sruthi" data-role="Backend Developer">👩‍💻 Sruthi — Backend Dev</option>
+          <option value="Rama" data-role="Marketing Lead">👨‍💼 Rama — Marketing Lead</option>
+          <option value="Kundana" data-role="Frontend Developer">👩‍💻 Kundana — Frontend Dev</option>
+          <option value="Pavani" data-role="UI/UX Designer">👩‍🎨 Pavani — UI/UX Designer</option>
+          <option value="Gowri" data-role="Operations Manager">👩‍💼 Gowri — Operations Manager</option>
+          <option value="Priya" data-role="QA Lead">👩‍💻 Priya — QA Lead</option>
+          <option value="Anil" data-role="Client Relations Lead">👨‍💼 Anil — Client Relations</option>
+          <option value="Sneha" data-role="Backend Developer">👩‍💻 Sneha — Backend Dev</option>
+          <option value="Vikram" data-role="UI/UX Designer">👨‍🎨 Vikram — UI/UX Designer</option>
+        </select>
+        <button type="button" onclick="loginSelectedEmployee()" class="btn btn-secondary" style="padding:0.5rem 0.9rem;font-size:0.85rem;">
+          Log In
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'js/api.js' %}"></script>
+  <script src="{% static 'js/auth.js' %}"></script>
+  <script>
+    function switchTab(tab) {
+      const signinSection = document.getElementById('signin-section');
+      const registerSection = document.getElementById('register-section');
+      const tabSignIn = document.getElementById('tab-btn-signin');
+      const tabRegister = document.getElementById('tab-btn-register');
+
+      // Clear alerts
+      document.getElementById('signin-alert').style.display = 'none';
+      document.getElementById('register-alert').style.display = 'none';
+
+      if (tab === 'signin') {
+        signinSection.style.display = 'block';
+        registerSection.style.display = 'none';
+        tabSignIn.classList.add('active');
+        tabRegister.classList.remove('active');
+      } else {
+        signinSection.style.display = 'none';
+        registerSection.style.display = 'block';
+        tabRegister.classList.add('active');
+        tabSignIn.classList.remove('active');
+      }
+    }
+
+    async function handleEmailPasswordLogin(e) {
+      if (e) e.preventDefault();
+      const alertBox = document.getElementById('signin-alert');
+      alertBox.className = 'auth-alert';
+      alertBox.style.display = 'none';
+
+      const identifier = document.getElementById('login-identifier').value.trim();
+      const password = document.getElementById('login-password').value;
+      const btn = document.getElementById('btn-signin-submit');
+
+      if (!identifier || !password) {
+        alertBox.innerText = 'Please enter your email/username and password.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Signing in...';
+
+      try {
+        await authService.loginWithEmailPassword(identifier, password);
+      } catch (err) {
+        alertBox.innerText = err.message || 'Invalid email or password.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        btn.disabled = false;
+        btn.innerText = 'Sign In';
+      }
+    }
+
+    async function handleRegistration(e) {
+      if (e) e.preventDefault();
+      const alertBox = document.getElementById('register-alert');
+      alertBox.className = 'auth-alert';
+      alertBox.style.display = 'none';
+
+      const firstName = document.getElementById('reg-firstname').value.trim();
+      const lastName = document.getElementById('reg-lastname').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const department = document.getElementById('reg-department').value;
+      const role = document.getElementById('reg-role').value.trim() || 'Team Member';
+      const password = document.getElementById('reg-password').value;
+      const password2 = document.getElementById('reg-password2').value;
+
+      if (!firstName) {
+        alertBox.innerText = 'Please enter your first name.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        return;
+      }
+      if (!email) {
+        alertBox.innerText = 'Please enter a valid work email address.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        return;
+      }
+      if (password !== password2) {
+        alertBox.innerText = 'Passwords do not match. Please re-enter.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        return;
+      }
+      if (password.length < 6) {
+        alertBox.innerText = 'Password must be at least 6 characters long.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('btn-register-submit');
+      btn.disabled = true;
+      btn.innerText = 'Creating account...';
+
+      try {
+        await authService.registerUser({
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          department: department,
+          job_role: role,
+          password: password
+        });
+      } catch (err) {
+        alertBox.innerText = err.message || 'Registration failed.';
+        alertBox.className = 'auth-alert error';
+        alertBox.style.display = 'block';
+        btn.disabled = false;
+        btn.innerText = '✨ Create Account & Enter';
+      }
+    }
+
+    function loginSelectedEmployee() {
+      const select = document.getElementById('employeeSelect');
+      const username = select.value;
+      const role = select.options[select.selectedIndex].getAttribute('data-role');
+      authService.loginWithDemoUser(username, role);
+    }
+
+    function handleGoogleLogin() {
+      const demoToken = "demo-token-google_user_rahul";
+      authService.loginWithFirebaseToken(demoToken);
+    }
+
+    function handleAppleLogin() {
+      const demoToken = "demo-token-apple_user_priya";
+      authService.loginWithFirebaseToken(demoToken);
+    }
+  </script>
+</body>
+</html>

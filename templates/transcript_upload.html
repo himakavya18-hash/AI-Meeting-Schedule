@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Upload Transcript - AI Meeting Portal{% endblock %}
+{% block page_title %}Upload Meeting Transcript for AI Analysis{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-header">
+    <div class="card-title">📄 Meeting Transcript Upload</div>
+    <button type="button" onclick="loadSampleTranscript()" class="btn btn-secondary" style="font-size:0.8rem;">✨ Load Sample Transcript</button>
+  </div>
+  <form id="transcript-form" enctype="multipart/form-data">
+    <div class="form-group">
+      <label class="form-label">Select Meeting *</label>
+      <select id="t-meeting-id" class="form-control" required>
+        <option value="">-- Select Meeting --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Upload File (.txt, .pdf, .docx)</label>
+      <input type="file" id="t-file" class="form-control" accept=".txt,.pdf,.docx">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Or Paste Transcript Text Directly</label>
+      <textarea id="t-raw-text" class="form-control" style="min-height: 180px;" placeholder="Rahul: We should deploy the new version by Friday.&#10;Priya: I will complete the API testing by Thursday.&#10;Anil: We still need confirmation from the client.&#10;Manager: Okay, Rahul will handle deployment and Priya will complete testing."></textarea>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+      <button type="submit" class="btn btn-primary">⚡ Upload & Run GenAI Analysis</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const meetings = await api.get('/meetings/');
+    const select = document.getElementById('t-meeting-id');
+    
+    select.innerHTML = `<option value="">-- Select Meeting --</option>` + 
+      meetings.map(m => `<option value="${m.id}">${m.title} (${m.date})</option>`).join('');
+
+    // Preselect meeting if query param present
+    const urlParams = new URLSearchParams(window.location.search);
+    const preMeetingId = urlParams.get('meeting_id');
+    if (preMeetingId) {
+      select.value = preMeetingId;
+    }
+
+    document.getElementById('transcript-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const meetingId = select.value;
+      const fileInput = document.getElementById('t-file');
+      const rawText = document.getElementById('t-raw-text').value;
+
+      if (!meetingId) {
+        alert('Please select a meeting.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('meeting_id', meetingId);
+      if (fileInput.files.length > 0) {
+        formData.append('file', fileInput.files[0]);
+      }
+      formData.append('raw_text', rawText);
+
+      try {
+        const uploadRes = await api.post('/transcripts/upload/', formData);
+        const transcriptId = uploadRes.transcript.id;
+
+        // Auto trigger AI extraction
+        alert('Transcript saved! Running AI Decision & Action extraction...');
+        await aiExtractor.triggerAnalysis(transcriptId);
+        
+        window.location.href = `/meetings/${meetingId}/ai-analysis/`;
+      } catch (err) {
+        alert('Error uploading transcript: ' + err.message);
+      }
+    });
+  });
+
+  function loadSampleTranscript() {
+    document.getElementById('t-raw-text').value = 
+`Rahul: We should deploy the new application version by Friday.
+Priya: I will complete the API testing by Thursday.
+Anil: We still need confirmation from the client regarding final sign-off.
+Manager: Okay, Rahul will handle deployment and Priya will complete testing by Thursday.
+Sneha: Maybe we should also review the database indexing before launch.
+Rahul: Deployment strictly depends on successful API testing by Priya.`;
+  }
+</script>
+{% endblock %}

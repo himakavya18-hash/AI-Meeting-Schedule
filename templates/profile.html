@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Employee Profile - AI Meeting Portal{% endblock %}
+{% block page_title %}Employee Profile & Availability Settings{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+  <div class="card-header">
+    <div class="card-title">👤 Employee Details</div>
+  </div>
+  <form id="profile-form">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+      <div class="form-group">
+        <label class="form-label">First Name</label>
+        <input type="text" id="prof-first-name" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input type="text" id="prof-last-name" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="prof-email" class="form-control" disabled>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Employee ID</label>
+        <input type="text" id="prof-emp-id" class="form-control" disabled>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <input type="text" id="prof-department" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Job Role</label>
+        <input type="text" id="prof-job-role" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Availability Status</label>
+        <select id="prof-status" class="form-control">
+          <option value="Available">Available (Ready for meetings)</option>
+          <option value="Busy">Busy (Do Not Disturb)</option>
+          <option value="On Leave">On Leave (Unavailable)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time Zone</label>
+        <input type="text" id="prof-timezone" class="form-control" value="UTC">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Work Start Time</label>
+        <input type="time" id="prof-work-start" class="form-control" value="09:00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Work End Time</label>
+        <input type="time" id="prof-work-end" class="form-control" value="17:00">
+      </div>
+    </div>
+    <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+      <button type="submit" class="btn btn-primary">Save Profile Changes</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const user = await authService.getCurrentUser();
+    if (user) {
+      document.getElementById('prof-first-name').value = user.first_name || '';
+      document.getElementById('prof-last-name').value = user.last_name || '';
+      document.getElementById('prof-email').value = user.email || '';
+      document.getElementById('prof-emp-id').value = user.employee_id || '';
+      document.getElementById('prof-department').value = user.department || '';
+      document.getElementById('prof-job-role').value = user.job_role || '';
+      document.getElementById('prof-status').value = user.status || 'Available';
+      document.getElementById('prof-timezone').value = user.time_zone || 'UTC';
+      document.getElementById('prof-work-start').value = user.work_start_time ? user.work_start_time.substring(0,5) : '09:00';
+      document.getElementById('prof-work-end').value = user.work_end_time ? user.work_end_time.substring(0,5) : '17:00';
+    }
+
+    document.getElementById('profile-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api.put('/accounts/me/', {
+          first_name: document.getElementById('prof-first-name').value,
+          last_name: document.getElementById('prof-last-name').value,
+          department: document.getElementById('prof-department').value,
+          job_role: document.getElementById('prof-job-role').value,
+          status: document.getElementById('prof-status').value,
+          time_zone: document.getElementById('prof-timezone').value,
+          work_start_time: document.getElementById('prof-work-start').value,
+          work_end_time: document.getElementById('prof-work-end').value,
+        });
+        alert('Profile updated successfully!');
+        window.location.reload();
+      } catch (err) {
+        alert('Error updating profile: ' + err.message);
+      }
+    });
+  });
+</script>
+{% endblock %}
